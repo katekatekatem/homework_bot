@@ -115,8 +115,7 @@ def main():
         logging.critical('Отсутствует токен.')
         raise ValueError('Отсутствует токен.')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    # timestamp = int(time.time())
-    timestamp = 1677697200  # для отладки
+    timestamp = int(time.time())
     last_message = ''
     while True:
         try:
