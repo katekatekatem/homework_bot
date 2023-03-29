@@ -133,10 +133,13 @@ def main():
             response = get_api_answer(timestamp)
             homework = check_response(response)
             if homework:
+                logger.info('Статус домашней работы изменился.')
                 message = parse_status(homework[0])
                 if message != last_message:
                     last_message = message
                     send_message(bot, message)
+            else:
+                logger.info('Статус домашней работы не изменился.')
             timestamp = response['current_date']
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
