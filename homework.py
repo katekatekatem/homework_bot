@@ -28,22 +28,36 @@ HOMEWORK_VERDICTS = {
 }
 
 
+logger = logging.getLogger('my_log')
+logger.setLevel(logging.DEBUG)
+handlers = [
+    logging.StreamHandler(sys.stdout),
+    logging.FileHandler('program.log', 'a', 'utf-8')
+]
+formatter = logging.Formatter(
+    '%(asctime)s, %(levelname)s, %(message)s, %(funcName)s, %(lineno)s'
+)
+for handler in handlers:
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+
 def check_tokens():
     """Проверка доступности переменных окружения."""
-    logging.info('Начинаем проверку доступности переменных окружения.')
+    logger.info('Начинаем проверку доступности переменных окружения.')
     tokens = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID')
     check = {token: globals()[token] for token in tokens}
     if not all(check.values()):
         empty_tokens = [token for token in tokens if globals()[token] is None]
-        logging.info(f'Отсутствуют переменные {empty_tokens}.')
+        logger.critical(f'Отсутствуют переменные {empty_tokens}.')
+        raise ValueError(f'Отсутствуют переменные {empty_tokens}.')
     else:
-        logging.info('Переменные окружения доступны.')
-    return (all(check.values()))
+        logger.info('Переменные окружения доступны.')
 
 
 def get_api_answer(timestamp):
     """Делает запрос к эндпоинту."""
-    logging.info(f'Делаем запрос к {ENDPOINT}, from_date={timestamp}.')
+    logger.info(f'Делаем запрос к {ENDPOINT}, from_date={timestamp}.')
     try:
         homework_statuses = requests.get(
             ENDPOINT,
@@ -58,7 +72,7 @@ def get_api_answer(timestamp):
         raise ValueError(
             f'{homework_statuses.status_code} ошибка доступа к странице.'
         )
-    logging.info(
+    logger.info(
         f'Успешно выполнен запрос к {ENDPOINT}, from_date={timestamp}.'
     )
     return homework_statuses.json()
@@ -66,10 +80,9 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверяет ответ API на соответствие документации."""
-    logging.info('Начало проверки ответа сервера.')
+    logger.info('Начало проверки ответа сервера.')
     if not isinstance(response, dict):
         raise TypeError(f'В ответе API не словарь, а {type(response)}.')
-    print(isinstance(response, dict))
     if 'homeworks' not in response:
         raise KeyError('В ответе API нет ключа `homeworks`.')
     if 'current_date' not in response:
@@ -79,13 +92,13 @@ def check_response(response):
             'В ответе API под ключом `homeworks` не список, '
             f'а {type(response["homeworks"])}.'
         )
-    logging.info('Проверка ответа сервера прошла успешно.')
+    logger.info('Проверка ответа сервера прошла успешно.')
     return response['homeworks']
 
 
 def parse_status(homework):
     """Извлекает из информации о конкретной домашней работе ее статус."""
-    logging.info('Начинаем извлекать информацию о статусе домашней работе.')
+    logger.info('Начинаем извлекать информацию о статусе домашней работе.')
     if 'homework_name' not in homework:
         raise KeyError('Отсутствует ключ homework_name.')
     homework_name = homework['homework_name']
@@ -94,26 +107,24 @@ def parse_status(homework):
     status = homework['status']
     if status not in HOMEWORK_VERDICTS:
         raise KeyError(f'Неожиданный статус {status} домашней работы.')
-    logging.info('Информация о статусе домашней работе успешно извлечена.')
+    logger.info('Информация о статусе домашней работе успешно извлечена.')
     verdict = HOMEWORK_VERDICTS[status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
-    logging.info(f'Начинается отправка сообщения "{message}" в телеграм.')
+    logger.info(f'Начинается отправка сообщения "{message}" в телеграм.')
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.debug(f'Сообщение "{message}" отправлено в телеграм.')
+        logger.debug(f'Сообщение "{message}" отправлено в телеграм.')
     except telegram.TelegramError:
-        logging.error(f'Ошибка отправки сообщения "{message}" в телеграм.')
+        logger.error(f'Ошибка отправки сообщения "{message}" в телеграм.')
 
 
 def main():
     """Основная логика работы бота."""
-    if check_tokens() is False:
-        logging.critical('Отсутствует токен.')
-        raise ValueError('Отсутствует токен.')
+    check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
     last_message = ''
@@ -138,17 +149,4 @@ def main():
 
 
 if __name__ == '__main__':
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.setLevel(logging.INFO)
-    handlers = [
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('program.log')
-    ]
-    formatter = logging.Formatter(
-        '%(asctime)s, %(levelname)s, %(message)s, %(funcName)s, %(lineno)s'
-    )
-    for handler in handlers:
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
     main()
